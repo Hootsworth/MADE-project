@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isEventHost(eventId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/events/$(eventId)).data.hostUid == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow read, update, delete: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.email is string
+        && request.resource.data.email.matches('.*@college\\.edu$');
+    }
+
+    match /events/{eventId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid;
+      allow update, delete: if signedIn()
+        && resource.data.hostUid == request.auth.uid;
+    }
+
+    match /rsvps/{eventId}/attendees/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isOwner(uid);
+      allow delete: if isOwner(uid) || isEventHost(eventId);
+    }
+
+    match /eventWall/{eventId}/posts/{postId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (resource.data.uid == request.auth.uid ||
+            get(/databases/$(database)/documents/events/$(eventId)).data.hostUid == request.auth.uid);
+    }
+
+    match /departments/{deptId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+  }
+}

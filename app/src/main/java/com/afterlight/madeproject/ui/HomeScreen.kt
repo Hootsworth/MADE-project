@@ -1,27 +1,29 @@
 package com.afterlight.madeproject.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.NotificationsNone
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,22 +32,67 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.afterlight.madeproject.domain.model.Event
-import com.afterlight.madeproject.utils.DateTimeUtils
+import com.afterlight.madeproject.domain.model.EventStatus
+import com.afterlight.madeproject.domain.model.UserRole
 import com.afterlight.madeproject.ui.theme.*
+import com.afterlight.madeproject.utils.DateTimeUtils
 
 @Composable
 fun HomeScreen(
     onEventClick: (String) -> Unit,
     onHostClick: () -> Unit,
+    onScanClick: () -> Unit,
+    onPosterScanClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val feed by viewModel.feed.collectAsStateWithLifecycle()
     val week by viewModel.week.collectAsStateWithLifecycle()
     val aiBrief by viewModel.aiBrief.collectAsStateWithLifecycle()
     val dailyQuote by viewModel.dailyQuote.collectAsStateWithLifecycle()
+    val profile by viewModel.profile.collectAsStateWithLifecycle()
+    val isHost = profile?.role == UserRole.HOST
 
-    val leadEvent = feed.firstOrNull() ?: week.firstOrNull()
-    // DiceBear avatar URL (API #1) – deterministic per session
+    if (isHost) {
+        HostHomeContent(
+            feed = feed,
+            week = week,
+            aiBrief = aiBrief,
+            dailyQuote = dailyQuote,
+            onEventClick = onEventClick,
+            onHostClick = onHostClick,
+            onScanClick = onScanClick,
+            onPosterScanClick = onPosterScanClick,
+            viewModel = viewModel
+        )
+    } else {
+        StudentHomeContent(
+            feed = feed,
+            week = week,
+            dailyQuote = dailyQuote,
+            onEventClick = onEventClick,
+            onScanClick = onScanClick,
+            onPosterScanClick = onPosterScanClick,
+            viewModel = viewModel
+        )
+    }
+}
+
+@Composable
+private fun HostHomeContent(
+    feed: List<Event>,
+    week: List<Event>,
+    aiBrief: String,
+    dailyQuote: Pair<String, String>?,
+    onEventClick: (String) -> Unit,
+    onHostClick: () -> Unit,
+    onScanClick: () -> Unit,
+    onPosterScanClick: () -> Unit,
+    viewModel: HomeViewModel
+) {
+    val now = System.currentTimeMillis()
+    val upcomingFeed = feed.filterNot { it.isOver(now) }
+    val upcomingWeek = week.filterNot { it.isOver(now) }
+    val leadEvent = upcomingFeed.firstOrNull() ?: upcomingWeek.firstOrNull()
     val avatarUrl = viewModel.externalApiService.diceBearAvatarUrl("campus-user-home")
 
     LazyColumn(
@@ -53,175 +100,216 @@ fun HomeScreen(
             .fillMaxSize()
             .background(Snow)
             .padding(horizontal = 24.dp),
-        contentPadding = PaddingValues(top = 24.dp, bottom = 100.dp),
+        contentPadding = PaddingValues(top = 40.dp, bottom = 120.dp), // Matched top padding
         verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                // Header Row — FIX: dynamic greeting based on time of day
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // DiceBear avatar (API endpoint #1)
-                        AsyncImage(
-                            model = avatarUrl,
-                            contentDescription = "User avatar",
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .border(2.dp, Coal, CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                        Column {
-                            Text(
-                                text = viewModel.greeting(),
-                                style = GatherTypography.labelMedium,
-                                color = LightTextMuted
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f))
+                        ) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "User avatar",
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .background(Pearl.copy(alpha = 0.3f)),
+                                contentScale = ContentScale.Crop
                             )
-                            Text(
-                                text = "Campus Creator.",
-                                style = GatherTypography.displayLarge,
-                                color = Coal
-                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(text = viewModel.greeting(), style = GatherTypography.labelMedium, color = LightTextMuted)
+                            Text(text = "Campus Creator.", style = GatherTypography.displayLarge, color = Coal)
                         }
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TopActionBubble(icon = Icons.Default.NotificationsNone)
                         TopActionBubble(icon = Icons.Default.Bolt)
                     }
                 }
 
-                // AI Brief Block (uses OpenAI/Gemini API #3/#4 for feed summary)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(backgroundColor = Pearl, shadowOffset = 4.dp)
-                        .padding(16.dp)
+                // Geometric AI Brief Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Snow),
+                    border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(text = "AI BRIEF //", style = GatherTypography.labelLarge, color = Coal)
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, tint = Copper, modifier = Modifier.size(16.dp))
+                            Text(text = "AI Brief", style = GatherTypography.labelMedium, color = Coal)
+                        }
                         Text(text = aiBrief, style = GatherTypography.bodyLarge, color = LightTextMuted)
                     }
                 }
 
-                // Daily Quote from Quotable API (#6) — shown as a subtle block
                 dailyQuote?.let { (content, author) ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .neoBrutalism(backgroundColor = Sand, shadowOffset = 2.dp)
-                            .padding(16.dp)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Sand.copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, Sand.copy(alpha = 0.3f))
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "DAILY INSPIRATION //",
-                                style = GatherTypography.labelSmall,
-                                color = Coal
-                            )
-                            Text(
-                                text = "\"$content\"",
-                                style = GatherTypography.bodyLarge,
-                                color = Coal
-                            )
-                            Text(
-                                text = "— $author",
-                                style = GatherTypography.labelMedium,
-                                color = Moss
-                            )
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(text = "Daily Inspiration", style = GatherTypography.labelSmall, color = Moss)
+                            Text(text = "\"$content\"", style = GatherTypography.bodyLarge, color = Coal)
+                            Text(text = "— $author", style = GatherTypography.labelMedium, color = Coal.copy(alpha = 0.6f))
                         }
                     }
                 }
 
-                // Hero Event Card (Lead Event)
                 leadEvent?.let { event ->
                     val coverUrl = event.coverImageUrl.ifBlank {
                         viewModel.externalApiService.unsplashCoverUrl(event.category.ifBlank { "event,campus" })
                     }
-                    Box(
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(300.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable { onEventClick(event.eventId) }
+                            .height(340.dp)
+                            .clickable { onEventClick(event.eventId) },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Coal.copy(alpha = 0.15f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        AsyncImage(
-                            model = coverUrl,
-                            contentDescription = event.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(Color.Transparent, Coal.copy(alpha = 0.9f)),
-                                        startY = 200f
-                                    )
-                                )
-                        )
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(24.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "FEATURED EVENT",
-                                style = GatherTypography.labelMedium,
-                                color = Snow,
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            AsyncImage(
+                                model = coverUrl,
+                                contentDescription = event.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            Box(
                                 modifier = Modifier
-                                    .background(Copper)
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(Color.Transparent, Snow.copy(alpha = 0.95f)),
+                                            startY = 300f
+                                        )
+                                    )
                             )
-                            Text(
-                                text = event.title,
-                                style = GatherTypography.displayLarge,
-                                color = Snow,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(24.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                val urgency = urgencyMessage(event, now)
+
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Snow.copy(alpha = 0.9f),
+                                    border = BorderStroke(1.dp, Coal.copy(alpha = 0.1f))
+                                ) {
+                                    Text(
+                                        text = "Featured Edition",
+                                        style = GatherTypography.labelSmall,
+                                        color = Coal,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+                                }
+                                Text(
+                                    text = event.title,
+                                    style = GatherTypography.displayLarge,
+                                    color = Coal,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                urgency?.let {
+                                    Surface(shape = RoundedCornerShape(6.dp), color = Copper) {
+                                        Text(
+                                            text = it,
+                                            style = GatherTypography.labelSmall,
+                                            color = Snow,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                // Dual Action Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Box(
+                // Squared off action row
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .neoBrutalism(backgroundColor = Moss, shadowOffset = 4.dp)
-                            .clickable(onClick = onHostClick)
-                            .padding(20.dp)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onHostClick),
+                        color = Moss,
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Column {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = Snow, modifier = Modifier.size(32.dp))
-                            Spacer(Modifier.height(16.dp))
-                            Text("Host Event", style = GatherTypography.titleLarge, color = Snow)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Snow, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Host", style = GatherTypography.labelLarge, color = Snow)
                         }
                     }
-                    
-                    Box(
+
+                    Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .neoBrutalism(backgroundColor = Sand, shadowOffset = 4.dp)
-                            .clickable { /* Future Feature: Discover/Scan */ }
-                            .padding(20.dp)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onScanClick),
+                        color = Snow,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f))
                     ) {
-                        Column {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = Coal, modifier = Modifier.size(32.dp))
-                            Spacer(Modifier.height(16.dp))
-                            Text("Discover", style = GatherTypography.titleLarge, color = Coal)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Star, contentDescription = null, tint = Coal, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Scan QR", style = GatherTypography.labelLarge, color = Coal)
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onPosterScanClick),
+                        color = Snow,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, tint = Copper, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Poster", style = GatherTypography.labelLarge, color = Coal) // Shortened for fit
                         }
                     }
                 }
@@ -229,38 +317,38 @@ fun HomeScreen(
         }
 
         item {
-            Text(text = "THE LOCAL REGISTRY", style = GatherTypography.labelLarge, color = Coal)
+            Text(text = "The Local Registry", style = GatherTypography.titleLarge, color = Coal)
         }
 
-        if (week.isNotEmpty() || feed.isNotEmpty()) {
+        if (upcomingWeek.isNotEmpty() || upcomingFeed.isNotEmpty()) {
             item {
-                val carousel = if (week.isNotEmpty()) week else feed
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                val carousel = if (upcomingWeek.isNotEmpty()) upcomingWeek else upcomingFeed
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(end = 24.dp)
+                ) {
                     items(carousel) { event ->
-                        Box(
-                            modifier = Modifier
-                                .width(240.dp)
-                                .neoBrutalism(backgroundColor = Pearl, shadowOffset = 6.dp)
-                                .clickable { onEventClick(event.eventId) }
+                        Card(
+                            modifier = Modifier.width(260.dp).clickable { onEventClick(event.eventId) },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Snow),
+                            border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column {
-                                // Unsplash fallback for events without cover images (API #2)
                                 val coverUrl = event.coverImageUrl.ifBlank {
-                                    viewModel.externalApiService.unsplashCoverUrl(
-                                        event.category.ifBlank { "event,campus" }
-                                    )
+                                    viewModel.externalApiService.unsplashCoverUrl(event.category.ifBlank { "event,campus" })
                                 }
+                                val urgency = urgencyMessage(event, now)
+
                                 AsyncImage(
                                     model = coverUrl,
                                     contentDescription = event.title,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(140.dp)
-                                        .background(Coal),
+                                    modifier = Modifier.fillMaxWidth().height(140.dp),
                                     contentScale = ContentScale.Crop
                                 )
                                 Column(
-                                    modifier = Modifier.padding(16.dp),
+                                    modifier = Modifier.padding(20.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
@@ -272,9 +360,12 @@ fun HomeScreen(
                                     )
                                     Text(
                                         text = DateTimeUtils.formatEventTime(event.dateTime),
-                                        style = GatherTypography.labelMedium,
-                                        color = Copper
+                                        style = GatherTypography.bodyMedium,
+                                        color = LightTextMuted
                                     )
+                                    urgency?.let {
+                                        Text(text = it, style = GatherTypography.labelSmall, color = Copper)
+                                    }
                                 }
                             }
                         }
@@ -286,42 +377,305 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TopActionBubble(icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Box(
+private fun StudentHomeContent(
+    feed: List<Event>,
+    week: List<Event>,
+    dailyQuote: Pair<String, String>?,
+    onEventClick: (String) -> Unit,
+    onScanClick: () -> Unit,
+    onPosterScanClick: () -> Unit,
+    viewModel: HomeViewModel
+) {
+    val now = System.currentTimeMillis()
+    val upcomingFeed = feed.filterNot { it.isOver(now) }
+    val upcomingWeek = week.filterNot { it.isOver(now) }
+    val spotlight = (upcomingWeek.take(3) + upcomingFeed.take(3)).distinctBy { it.eventId }.take(5)
+    val nextEvent = spotlight.firstOrNull()
+    val avatarUrl = viewModel.externalApiService.diceBearAvatarUrl("campus-student-home")
+
+    LazyColumn(
         modifier = Modifier
-            .size(48.dp)
-            .neoBrutalism(backgroundColor = Snow, shadowOffset = 4.dp),
-        contentAlignment = Alignment.Center
+            .fillMaxSize()
+            .background(Snow)
+            .padding(horizontal = 24.dp),
+        contentPadding = PaddingValues(top = 40.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = Coal, modifier = Modifier.size(24.dp))
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f))
+                        ) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "Student avatar",
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .background(Pearl.copy(alpha = 0.3f)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(text = viewModel.greeting(), style = GatherTypography.labelMedium, color = LightTextMuted)
+                            Text(text = "Student Hub.", style = GatherTypography.displayLarge, color = Coal)
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Sand.copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, Sand.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            text = "For Students",
+                            style = GatherTypography.labelSmall,
+                            color = Coal,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Snow,
+                    border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(text = "Your campus feed", style = GatherTypography.labelMedium, color = Moss)
+                        Text(
+                            text = "Discover, RSVP, and keep your ticket wallet in one place.",
+                            style = GatherTypography.bodyLarge,
+                            color = Coal
+                        )
+                    }
+                }
+
+                dailyQuote?.let { (content, author) ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Sand.copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, Sand.copy(alpha = 0.3f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(text = "Campus Quote", style = GatherTypography.labelSmall, color = Moss)
+                            Text(text = "\"$content\"", style = GatherTypography.bodyLarge, color = Coal)
+                            Text(text = "— $author", style = GatherTypography.labelMedium, color = Coal.copy(alpha = 0.6f))
+                        }
+                    }
+                }
+
+                nextEvent?.let { event ->
+                    val coverUrl = event.coverImageUrl.ifBlank {
+                        viewModel.externalApiService.unsplashCoverUrl(event.category.ifBlank { "campus,event" })
+                    }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .clickable { onEventClick(event.eventId) },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Coal.copy(alpha = 0.15f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            AsyncImage(
+                                model = coverUrl,
+                                contentDescription = event.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(Color.Transparent, Snow.copy(alpha = 0.92f)),
+                                            startY = 280f
+                                        )
+                                    )
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(22.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Snow,
+                                    border = BorderStroke(1.dp, Copper.copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        text = "Next up",
+                                        style = GatherTypography.labelSmall,
+                                        color = Copper,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                                Text(
+                                    text = event.title,
+                                    style = GatherTypography.displayLarge,
+                                    color = Coal,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = DateTimeUtils.formatEventTime(event.dateTime),
+                                    style = GatherTypography.bodyMedium,
+                                    color = LightTextMuted
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onScanClick),
+                        color = Snow,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Star, contentDescription = null, tint = Coal, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Scan QR", style = GatherTypography.labelLarge, color = Coal)
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onPosterScanClick),
+                        color = Snow,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, tint = Copper, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Poster AI", style = GatherTypography.labelLarge, color = Coal)
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Text(text = "Recommended for You", style = GatherTypography.titleLarge, color = Coal)
+        }
+
+        if (spotlight.isNotEmpty()) {
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(end = 24.dp)
+                ) {
+                    items(spotlight) { event ->
+                        Card(
+                            modifier = Modifier
+                                .width(220.dp)
+                                .clickable { onEventClick(event.eventId) },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Snow),
+                            border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Column {
+                                val coverUrl = event.coverImageUrl.ifBlank {
+                                    viewModel.externalApiService.unsplashCoverUrl(event.category.ifBlank { "campus,event" })
+                                }
+                                AsyncImage(
+                                    model = coverUrl,
+                                    contentDescription = event.title,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(132.dp),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Column(
+                                    modifier = Modifier.padding(18.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = event.title,
+                                        style = GatherTypography.titleLarge,
+                                        color = Coal,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = DateTimeUtils.formatEventTime(event.dateTime),
+                                        style = GatherTypography.bodyMedium,
+                                        color = LightTextMuted
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun Event.isOver(now: Long = System.currentTimeMillis()): Boolean {
+    return status == EventStatus.PAST || dateTime <= now
+}
+
+private fun urgencyMessage(event: Event, now: Long = System.currentTimeMillis()): String? {
+    val minutesLeft = ((event.dateTime - now) / 60000L).coerceAtLeast(0L)
+    val spotsLeft = event.spotsLeft
+
+    return when {
+        minutesLeft in 1..30 -> "Closing soon: ${minutesLeft}m left"
+        spotsLeft in 1..5 -> "Limited: Only $spotsLeft left"
+        spotsLeft in 6..12 -> "Filling fast: $spotsLeft left"
+        else -> null
     }
 }
 
 @Composable
-private fun BrutalistFeatureCard(
-    badge: String,
-    title: String,
-    tint: Color,
-    textColor: Color = Coal,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .neoBrutalism(backgroundColor = tint, shadowOffset = 8.dp)
-            .clickable(onClick = onClick)
-            .padding(24.dp)
+private fun TopActionBubble(icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Surface(
+        modifier = Modifier.size(48.dp),
+        shape = RoundedCornerShape(8.dp), // Flattened shape
+        color = Pearl.copy(alpha = 0.6f)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(
-                text = badge,
-                style = GatherTypography.labelMedium,
-                color = textColor,
-                modifier = Modifier
-                    .border(2.dp, textColor)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            )
-            Text(text = title, style = GatherTypography.headlineLarge, color = textColor)
+        Box(contentAlignment = Alignment.Center) {
+            Icon(imageVector = icon, contentDescription = null, tint = Coal, modifier = Modifier.size(22.dp))
         }
     }
 }

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.afterlight.madeproject.domain.model.AiProvider
 import com.afterlight.madeproject.domain.model.AiSettings
+import com.afterlight.madeproject.domain.model.ThemeMode
 import com.afterlight.madeproject.domain.repository.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -24,6 +25,7 @@ class DataStoreSettingsRepository @Inject constructor(
 ) : SettingsRepository {
 
     private val onboardingKey = booleanPreferencesKey("onboarding_done")
+    private val themeModeKey = stringPreferencesKey("theme_mode")
     private val aiProviderKey = stringPreferencesKey("ai_provider")
     private val openAiKey = stringPreferencesKey("openai_api_key")
     private val geminiKey = stringPreferencesKey("gemini_api_key")
@@ -36,6 +38,20 @@ class DataStoreSettingsRepository @Inject constructor(
     override suspend fun setOnboardingDone(done: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[onboardingKey] = done
+        }
+    }
+
+    override fun themeMode(): Flow<ThemeMode> = context.dataStore.data.map { prefs ->
+        runCatching {
+            ThemeMode.valueOf(prefs[themeModeKey] ?: ThemeMode.SYSTEM.name)
+        }.getOrDefault(ThemeMode.SYSTEM)
+    }
+
+    override suspend fun getThemeMode(): ThemeMode = themeMode().first()
+
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { prefs ->
+            prefs[themeModeKey] = mode.name
         }
     }
 

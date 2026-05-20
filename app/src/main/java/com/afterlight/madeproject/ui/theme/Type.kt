@@ -15,48 +15,61 @@ private val MetaFamily = FontFamily(Font(R.font.jetbrains_mono))
 val GatherTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = DisplayFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 54.sp,
-        lineHeight = 58.sp,
-        letterSpacing = (-0.6).sp
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 50.sp,
+        lineHeight = 56.sp,
+        letterSpacing = (-0.4).sp
     ),
     headlineLarge = TextStyle(
         fontFamily = DisplayFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 36.sp,
-        lineHeight = 42.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
         letterSpacing = (-0.2).sp
     ),
     titleLarge = TextStyle(
         fontFamily = DisplayFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 27.sp,
-        lineHeight = 34.sp
+        fontSize = 24.sp,
+        lineHeight = 30.sp
     ),
     bodyLarge = TextStyle(
         fontFamily = BodyFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 17.sp,
-        lineHeight = 25.sp
+        fontSize = 16.sp,
+        lineHeight = 24.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = BodyFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 15.sp,
-        lineHeight = 23.sp
+        fontSize = 14.sp,
+        lineHeight = 21.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = BodyFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 18.sp
     ),
     labelLarge = TextStyle(
         fontFamily = MetaFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.9.sp
+        letterSpacing = 0.7.sp
     ),
     labelMedium = TextStyle(
         fontFamily = MetaFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 16.sp,
-        letterSpacing = 1.0.sp
+        letterSpacing = 0.75.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = MetaFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 10.sp,
+        lineHeight = 14.sp,
+        letterSpacing = 0.45.sp
     )
 )

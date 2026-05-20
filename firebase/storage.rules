@@ -7,12 +7,18 @@ service firebase.storage {
 
     match /eventCovers/{eventId}/{fileName} {
       allow read: if signedIn();
-      allow write: if signedIn();
+      allow write: if signedIn()
+        && request.resource.size < 5 * 1024 * 1024 // max 5 MB
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.metadata.uid == request.auth.uid;
     }
 
     match /eventWall/{eventId}/{fileName} {
       allow read: if signedIn();
-      allow write: if signedIn();
+      allow write: if signedIn()
+        && request.resource.size < 10 * 1024 * 1024 // max 10 MB for posts
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.metadata.uid == request.auth.uid;
     }
   }
 }

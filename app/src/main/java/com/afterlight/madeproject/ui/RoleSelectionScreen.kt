@@ -11,20 +11,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.afterlight.madeproject.domain.model.UserRole
-import com.afterlight.madeproject.ui.components.BrutalistButton
+import com.afterlight.madeproject.ui.components.SmoothButton
 import com.afterlight.madeproject.ui.theme.*
 
 @Composable
@@ -45,59 +52,61 @@ fun RoleSelectionScreen(
             modifier = Modifier.padding(top = 48.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(text = "ACCESS ROLE.", style = GatherTypography.displayLarge, color = Coal)
-            Text(text = "PERMISSION LEVEL", style = GatherTypography.labelMedium, color = LightTextMuted)
+            Text(text = "Access Role", style = GatherTypography.displayLarge, color = Coal)
+            Text(text = "Choose your permission level.", style = GatherTypography.bodyLarge, color = LightTextMuted)
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .neoBrutalism(backgroundColor = Pearl, shadowOffset = 8.dp)
-                .padding(24.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Pearl),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
                 Text(
-                    text = "SELECT OPERATIONAL MODE",
-                    style = GatherTypography.labelLarge,
+                    text = "Operational Mode",
+                    style = GatherTypography.titleLarge,
                     color = Coal
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     val roles = listOf(
-                        UserRole.STUDENT to "STUDENT PARTICIPANT" to "DISCOVER & RSVP TO CAMPUS EVENTS",
-                        UserRole.HOST to "EVENT ORGANIZER" to "CREATE & MANAGE EDITORIAL EDITIONS"
+                        UserRole.STUDENT to "Student Participant" to "Discover & RSVP to campus events",
+                        UserRole.HOST to "Event Organizer" to "Create & manage editorial editions"
                     )
 
                     roles.forEach { (rolePair, desc) ->
                         val (role, title) = rolePair
                         val isSelected = state.role == role
 
-                        Box(
+                        Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .neoBrutalism(
-                                    backgroundColor = if (isSelected) Sand else Snow,
-                                    shadowOffset = if (isSelected) 2.dp else 6.dp,
-                                    borderWidth = 3.dp
-                                )
-                                .clickable { viewModel.setRole(role) }
-                                .padding(20.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable(enabled = !state.saving) { viewModel.setRole(role) },
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isSelected) Sand.copy(alpha = 0.2f) else Pearl.copy(alpha = 0.2f),
                         ) {
                             Row(
+                                modifier = Modifier.padding(20.dp),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .neoBrutalism(backgroundColor = if (isSelected) Coal else LightGlass, shadowOffset = 0.dp)
-                                        .padding(12.dp)
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isSelected) Coal else Pearl.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(48.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = if (role == UserRole.STUDENT) Icons.Default.Search else Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = if (isSelected) Snow else Coal
-                                    )
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (role == UserRole.STUDENT) Icons.Default.Search else Icons.Default.Add,
+                                            contentDescription = null,
+                                            tint = if (isSelected) Snow else Coal
+                                        )
+                                    }
                                 }
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(
@@ -106,9 +115,9 @@ fun RoleSelectionScreen(
                                         color = Coal
                                     )
                                     Text(
-                                        text = desc.uppercase(),
-                                        style = GatherTypography.labelSmall,
-                                        color = Slate
+                                        text = desc,
+                                        style = GatherTypography.bodyMedium,
+                                        color = LightTextMuted
                                     )
                                 }
                             }
@@ -116,26 +125,28 @@ fun RoleSelectionScreen(
                     }
                 }
 
-                BrutalistButton(
-                    text = "INITIALIZE JOURNAL",
+                SmoothButton(
+                    text = if (state.saving) "Initializing..." else "Initialize App",
                     onClick = { viewModel.saveProfile(onFinish) },
-                    backgroundColor = Copper,
-                    modifier = Modifier.fillMaxWidth()
+                    containerColor = Copper,
+                    contentColor = Snow,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.saving
                 )
             }
         }
 
         AnimatedVisibility(visible = state.error != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .neoBrutalism(backgroundColor = Wine, shadowOffset = 4.dp)
-                    .padding(16.dp)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Wine.copy(alpha = 0.1f)
             ) {
                 Text(
-                    text = "VALIDATION ERROR: ${state.error.orEmpty()}",
-                    style = GatherTypography.labelMedium,
-                    color = Snow
+                    text = "Error: ${state.error.orEmpty()}",
+                    style = GatherTypography.bodyMedium,
+                    color = Wine,
+                    modifier = Modifier.padding(16.dp)
                 )
             }
         }

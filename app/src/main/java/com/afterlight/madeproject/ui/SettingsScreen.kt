@@ -1,50 +1,62 @@
 package com.afterlight.madeproject.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PersonOutline
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.afterlight.madeproject.domain.model.AiProvider
-import com.afterlight.madeproject.ui.components.BrutalistButton
-import com.afterlight.madeproject.ui.components.BrutalistTextField
+import com.afterlight.madeproject.domain.model.ThemeMode
 import com.afterlight.madeproject.ui.theme.Coal
-import com.afterlight.madeproject.ui.theme.Copper
 import com.afterlight.madeproject.ui.theme.GatherTypography
-import com.afterlight.madeproject.ui.theme.LightGlass
 import com.afterlight.madeproject.ui.theme.LightTextMuted
 import com.afterlight.madeproject.ui.theme.Moss
 import com.afterlight.madeproject.ui.theme.Pearl
-import com.afterlight.madeproject.ui.theme.Sand
 import com.afterlight.madeproject.ui.theme.Snow
-import com.afterlight.madeproject.ui.theme.neoBrutalism
 
 @Composable
 fun SettingsScreen(
     onAccountClick: () -> Unit,
+    onAiSettingsClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val isOpenAi = state.provider == AiProvider.OPENAI
 
     Column(
         modifier = Modifier
@@ -52,175 +64,248 @@ fun SettingsScreen(
             .background(Snow)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
         Column(
-            modifier = Modifier.padding(top = 24.dp),
+            modifier = Modifier.padding(top = 40.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(text = "CONTROL ROOM", style = GatherTypography.displayLarge, color = Coal)
+            Text(text = "Settings", style = GatherTypography.displayLarge, color = Coal)
             Text(
-                text = "Tune the assistant stack, keep credentials organized, and jump into account controls.",
+                text = "Manage your preferences and configurations.",
                 style = GatherTypography.bodyLarge,
                 color = LightTextMuted
             )
         }
 
-        SettingsPanel(title = "Account") {
-            Box(
+        SettingsGroup(title = "Account & Profile") {
+            SettingsRow(
+                icon = Icons.Outlined.PersonOutline,
+                title = "Account Center",
+                subtitle = "Profile, stats, shortcuts, and sign out",
+                onClick = onAccountClick
+            ) {
+                Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = Coal.copy(alpha = 0.5f))
+            }
+        }
+
+        SettingsGroup(title = "App Preferences") {
+            // Moved ThemePicker below the text for a cleaner, blockier layout
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .neoBrutalism(backgroundColor = Pearl, shadowOffset = 3.dp)
-                    .clickable(onClick = onAccountClick)
-                    .padding(16.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        shape = RoundedCornerShape(8.dp), // Sharper, geometric icon container
+                        color = Pearl.copy(alpha = 0.6f),
+                        modifier = Modifier.size(40.dp)
                     ) {
-                        Icon(Icons.Outlined.PersonOutline, contentDescription = null, tint = Coal)
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(text = "ACCOUNT CENTER", style = GatherTypography.labelLarge, color = Coal)
-                            Text(text = "Open profile, stats, shortcuts, and sign-out tools.", style = GatherTypography.bodyMedium, color = LightTextMuted)
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.Palette,
+                                contentDescription = null,
+                                tint = Coal,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
-                    Icon(Icons.Outlined.ChevronRight, contentDescription = "Account Center", tint = Coal)
-                }
-            }
-        }
 
-        SettingsPanel(title = "AI Provider") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(text = "Theme Mode", style = GatherTypography.titleMedium, color = Coal)
+                        Text(
+                            text = when (state.themeMode) {
+                                ThemeMode.SYSTEM -> "Follow the device setting"
+                                ThemeMode.LIGHT -> "Bright, editorial, paper-like"
+                                ThemeMode.DARK -> "Deep, immersive, low-light"
+                            },
+                            style = GatherTypography.bodyMedium,
+                            color = LightTextMuted
+                        )
+                    }
+                }
+
+                ThemeModePicker(
+                    selected = state.themeMode,
+                    onSelected = viewModel::setThemeMode
+                )
+            }
+
+            HorizontalDivider(color = Pearl.copy(alpha = 0.8f), thickness = 1.dp)
+
+            SettingsRow(
+                icon = Icons.Outlined.Visibility,
+                title = "Show Onboarding",
+                subtitle = "Display welcome screens on launch",
+                onClick = { viewModel.setOnboardingDone(state.onboardingDone) }
             ) {
-                ProviderCard(
-                    title = "OpenAI",
-                    body = "Balanced defaults for summaries and event polish.",
-                    selected = isOpenAi,
-                    accent = Copper,
-                    onClick = { viewModel.setProvider(AiProvider.OPENAI) },
-                    modifier = Modifier.weight(1f)
-                )
-                ProviderCard(
-                    title = "Gemini",
-                    body = "Alternative model path for experimentation and fallback.",
-                    selected = !isOpenAi,
-                    accent = Moss,
-                    onClick = { viewModel.setProvider(AiProvider.GEMINI) },
-                    modifier = Modifier.weight(1f)
+                Switch(
+                    checked = !state.onboardingDone,
+                    onCheckedChange = { viewModel.setOnboardingDone(!it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Snow,
+                        checkedTrackColor = Coal, // High contrast active state
+                        uncheckedThumbColor = Coal.copy(alpha = 0.7f),
+                        uncheckedTrackColor = Pearl,
+                        uncheckedBorderColor = Coal.copy(alpha = 0.2f)
+                    )
                 )
             }
-
-            BrutalistTextField(
-                value = state.model,
-                onValueChange = viewModel::setModel,
-                label = "MODEL IDENTIFIER"
-            )
         }
 
-        SettingsPanel(title = "Credentials") {
-            Text(
-                text = if (isOpenAi) {
-                    "OpenAI is active. Keep both keys handy if you want a quick provider switch later."
-                } else {
-                    "Gemini is active. OpenAI can still stay populated as a standby provider."
-                },
-                style = GatherTypography.bodyMedium,
-                color = LightTextMuted
-            )
-
-            BrutalistTextField(
-                value = state.openAiApiKey,
-                onValueChange = viewModel::setOpenAiKey,
-                label = "OPENAI API KEY"
-            )
-
-            BrutalistTextField(
-                value = state.geminiApiKey,
-                onValueChange = viewModel::setGeminiKey,
-                label = "GEMINI API KEY"
-            )
-        }
-
-        SettingsPanel(title = "Commit") {
-            Text(
-                text = "Save the current provider, model, and key configuration to local settings.",
-                style = GatherTypography.bodyMedium,
-                color = LightTextMuted
-            )
-
-            BrutalistButton(
-                text = "Commit Changes",
-                onClick = viewModel::save,
-                backgroundColor = Moss,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            state.status?.let { status ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(backgroundColor = Sand, shadowOffset = 3.dp)
-                        .padding(14.dp)
-                ) {
-                    Text(text = status.uppercase(), style = GatherTypography.labelMedium, color = Coal)
-                }
+        SettingsGroup(title = "Intelligence") {
+            SettingsRow(
+                icon = Icons.Outlined.AutoAwesome,
+                title = "AI Assistant",
+                subtitle = "Manage providers, models, and API keys",
+                onClick = onAiSettingsClick
+            ) {
+                Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = Coal.copy(alpha = 0.5f))
             }
         }
 
-        Spacer(modifier = Modifier.padding(bottom = 100.dp))
+        Spacer(modifier = Modifier.height(88.dp))
     }
 }
 
 @Composable
-private fun SettingsPanel(
+private fun SettingsGroup(
     title: String,
-    content: @Composable () -> Unit
+    content: @Composable ColumnScope.() -> Unit
 ) {
-    Box(
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = title.uppercase(),
+            style = GatherTypography.labelMedium,
+            color = Coal, // Stronger header contrast
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp), // Sharper, more structural corners
+            colors = CardDefaults.cardColors(containerColor = Snow), // Flatten background
+            border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f)), // Crisp borders instead of shadows
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // Removed elevation
+        ) {
+            Column {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    onClick: (() -> Unit)? = null,
+    trailing: @Composable () -> Unit
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .neoBrutalism(backgroundColor = Snow, shadowOffset = 6.dp)
-            .padding(20.dp)
+            .clickable(enabled = onClick != null, onClick = onClick ?: {})
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(text = title.uppercase(), style = GatherTypography.labelLarge, color = Coal)
-            content()
+        Surface(
+            shape = RoundedCornerShape(8.dp), // Geometric icon background
+            color = Pearl.copy(alpha = 0.6f),
+            modifier = Modifier.size(40.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Coal,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(text = title, style = GatherTypography.titleMedium, color = Coal)
+            if (subtitle != null) {
+                Text(text = subtitle, style = GatherTypography.bodyMedium, color = LightTextMuted)
+            }
+        }
+
+        trailing()
     }
 }
 
 @Composable
-private fun ProviderCard(
-    title: String,
-    body: String,
+private fun ThemeModePicker(
+    selected: ThemeMode,
+    onSelected: (ThemeMode) -> Unit
+) {
+    // Segmented control style for higher structural impact
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Pearl.copy(alpha = 0.4f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        ThemeModePickerChip(
+            text = "System",
+            selected = selected == ThemeMode.SYSTEM,
+            onClick = { onSelected(ThemeMode.SYSTEM) },
+            modifier = Modifier.weight(1f)
+        )
+        ThemeModePickerChip(
+            text = "Light",
+            selected = selected == ThemeMode.LIGHT,
+            onClick = { onSelected(ThemeMode.LIGHT) },
+            modifier = Modifier.weight(1f)
+        )
+        ThemeModePickerChip(
+            text = "Dark",
+            selected = selected == ThemeMode.DARK,
+            onClick = { onSelected(ThemeMode.DARK) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun ThemeModePickerChip(
+    text: String,
     selected: Boolean,
-    accent: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Surface(
         modifier = modifier
-            .neoBrutalism(
-                backgroundColor = if (selected) accent else LightGlass,
-                shadowOffset = 3.dp
-            )
-            .clickable(onClick = onClick)
-            .padding(16.dp)
+            .height(36.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(6.dp),
+        color = if (selected) Coal else Color.Transparent,
+        shadowElevation = if (selected) 2.dp else 0.dp // Updated from 'elevation'
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(text = title.uppercase(), style = GatherTypography.labelLarge, color = Coal)
-            Text(text = body, style = GatherTypography.bodyMedium, color = Coal)
+        Box(
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = if (selected) "ACTIVE" else "TAP TO ACTIVATE",
+                text = text,
                 style = GatherTypography.labelMedium,
-                color = Coal
+                color = if (selected) Snow else Coal.copy(alpha = 0.6f)
             )
         }
     }

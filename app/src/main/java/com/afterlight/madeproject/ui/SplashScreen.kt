@@ -1,19 +1,20 @@
-﻿package com.afterlight.madeproject.ui
+package com.afterlight.madeproject.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.afterlight.madeproject.ui.theme.*
 import kotlinx.coroutines.delay
@@ -28,52 +29,34 @@ fun SplashScreen(onDone: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Coal),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Snow, Pearl.copy(alpha = 0.5f))
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .neoBrutalism(backgroundColor = Snow, borderColor = Copper, borderWidth = 4.dp, shadowOffset = 12.dp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 32.dp, vertical = 64.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+            Surface(
+                shape = CircleShape,
+                color = Coal,
+                shadowElevation = 8.dp
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 120.dp, height = 12.dp)
-                        .background(Copper)
-                )
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "PAPERLIKE.",
-                        style = GatherTypography.displayLarge,
-                        color = Coal
-                    )
-                    Text(
-                        text = "EDITION 2026",
-                        style = GatherTypography.labelLarge,
-                        color = Moss
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(Coal)
-                )
-
                 Text(
-                    text = "CAMPUS ARCHIVE & EVENTS",
-                    style = GatherTypography.labelMedium,
-                    color = Coal
+                    text = "P.",
+                    style = GatherTypography.displayLarge,
+                    color = Snow,
+                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp)
                 )
             }
+            Text(
+                text = "Paperlike",
+                style = GatherTypography.titleLarge,
+                color = Coal
+            )
         }
     }
 }

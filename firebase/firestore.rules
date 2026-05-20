@@ -18,21 +18,64 @@ service cloud.firestore {
       allow read, update, delete: if isOwner(uid);
       allow create: if isOwner(uid)
         && request.resource.data.email is string
-        && request.resource.data.email.matches('.*@college\\.edu$');
+        && request.resource.data.email.matches('.*@([A-Za-z0-9-]+\\.)*edu\\.in$');
+
+      match /myRsvps/{eventId} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
     }
 
     match /events/{eventId} {
       allow read: if signedIn();
+      // Create: only the signed-in host may create, and basic fields are validated
       allow create: if signedIn()
-        && request.resource.data.hostUid == request.auth.uid;
-      allow update, delete: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.capacity is int
+        && request.resource.data.capacity > 0
+        && request.resource.data.dateTime is int
+        && request.resource.data.dateTime > request.time.toMillis()
+        && request.resource.data.status in ['draft', 'live'];
+
+      // Update: host may update their event but must not change the hostUid or createdAt.
+      // Also allow rsvpCount increments from server-side processes.
+      allow update: if signedIn()
+        && (
+          (
+            resource.data.hostUid == request.auth.uid
+            && request.resource.data.hostUid == resource.data.hostUid
+            && request.resource.data.createdAt == resource.data.createdAt
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rsvpCount'])
+            && request.resource.data.rsvpCount == resource.data.rsvpCount + 1
+          )
+        );
+
+      allow delete: if signedIn()
         && resource.data.hostUid == request.auth.uid;
     }
 
     match /rsvps/{eventId}/attendees/{uid} {
       allow read: if signedIn();
-      allow create, update: if isOwner(uid);
+      allow create: if isOwner(uid);
+      // Allow owner to update their own attendee doc. Allow host to only update checkInStatus.
+      allow update: if isOwner(uid) || (
+        isEventHost(eventId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['checkInStatus'])
+      );
       allow delete: if isOwner(uid) || isEventHost(eventId);
+    }
+
+    match /rsvps/{eventId}/waitlist/{uid} {
+      allow read: if signedIn();
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.waitAt is int;
+      allow delete: if isOwner(uid) || isEventHost(eventId);
+      allow update: if false;
     }
 
     match /eventWall/{eventId}/posts/{postId} {

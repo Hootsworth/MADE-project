@@ -37,4 +37,8 @@ interface EventRepository {
     fun observeRecapWall(eventId: String): Flow<List<RecapPost>>
     suspend fun removeAttendee(eventId: String, attendeeUid: String): Result<Unit>
     suspend fun postRecap(eventId: String, caption: String, imageUrl: String): Result<Unit>
+    fun observeWaitlistPosition(eventId: String, uid: String): Flow<Int?>
+    suspend fun removeFromWaitlist(eventId: String, uid: String): Result<Unit>
+    suspend fun markAttendeeCheckedIn(eventId: String, attendeeUid: String): Result<Unit>
+    suspend fun checkInWithTicket(eventId: String, ticketId: String): Result<Unit>
 }

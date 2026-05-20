@@ -1,5 +1,6 @@
 package com.afterlight.madeproject.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,9 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,23 +41,25 @@ fun NotificationsScreen(
             .fillMaxSize()
             .background(Snow)
             .padding(horizontal = 24.dp),
-        contentPadding = PaddingValues(bottom = 100.dp, top = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        contentPadding = PaddingValues(bottom = 120.dp, top = 40.dp), // Matched top padding
+        verticalArrangement = Arrangement.spacedBy(32.dp) // Matched spacing
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(text = "SIGNAL FEED.", style = GatherTypography.displayLarge, color = Coal)
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                Text(text = "Signal Feed", style = GatherTypography.displayLarge, color = Coal)
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(backgroundColor = Sand, shadowOffset = 6.dp)
-                        .padding(16.dp)
+                // Geometric Info Banner
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Sand.copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, Sand.copy(alpha = 0.3f))
                 ) {
                     Text(
-                        text = "SYSTEM LOG: ONLY RELEVANT REMINDERS AND UPDATES ARE ARCHIVED HERE.",
-                        style = GatherTypography.labelMedium,
-                        color = Coal
+                        text = "System log: Only relevant reminders and updates are archived here.",
+                        style = GatherTypography.bodyMedium,
+                        color = Coal.copy(alpha = 0.8f),
+                        modifier = Modifier.padding(16.dp)
                     )
                 }
             }
@@ -60,46 +67,58 @@ fun NotificationsScreen(
 
         if (notifications.isEmpty()) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(backgroundColor = Pearl, shadowOffset = 4.dp)
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
+                // Geometric Empty State
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Snow,
+                    border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f))
                 ) {
-                    Text(
-                        text = "INITIALIZING SIGNAL FEED...",
-                        style = GatherTypography.labelMedium,
-                        color = LightTextMuted
-                    )
+                    Box(
+                        modifier = Modifier.padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Initializing signal feed...",
+                            style = GatherTypography.bodyLarge,
+                            color = LightTextMuted
+                        )
+                    }
                 }
             }
         } else {
             items(notifications) { note ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(backgroundColor = Pearl, shadowOffset = 6.dp)
+                // Flat, Structured Notification Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Snow),
+                    border = BorderStroke(1.dp, Coal.copy(alpha = 0.12f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(20.dp),
-                        verticalAlignment = Alignment.Top,
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .neoBrutalism(backgroundColor = Coal, shadowOffset = 0.dp)
-                                .padding(8.dp)
+                        Surface(
+                            shape = RoundedCornerShape(8.dp), // Sharper icon background
+                            color = Pearl.copy(alpha = 0.6f),
+                            modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Notifications,
-                                contentDescription = null,
-                                tint = Snow,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Default.Notifications,
+                                    contentDescription = null,
+                                    tint = Coal,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
+
+                        val formattedNote = note.lowercase().replaceFirstChar { it.uppercase() }
                         Text(
-                            text = note,
+                            text = formattedNote,
                             style = GatherTypography.bodyLarge,
                             color = Coal
                         )

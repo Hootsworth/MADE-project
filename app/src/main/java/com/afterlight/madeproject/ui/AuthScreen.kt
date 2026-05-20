@@ -8,17 +8,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.afterlight.madeproject.BuildConfig
-import com.afterlight.madeproject.ui.components.BrutalistButton
-import com.afterlight.madeproject.ui.components.BrutalistTextField
+import com.afterlight.madeproject.ui.components.SmoothButton
+import com.afterlight.madeproject.ui.components.SmoothTextField
 import com.afterlight.madeproject.ui.theme.*
 import coil.compose.AsyncImage
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -27,6 +30,7 @@ import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun AuthScreen(
+    onAuthenticated: () -> Unit,
     onProfileSetup: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -49,6 +53,20 @@ fun AuthScreen(
         }
     }
 
+    LaunchedEffect(state.nextAction) {
+        when (state.nextAction) {
+            AuthNextAction.HOME -> {
+                viewModel.setNextAction(null)
+                onAuthenticated()
+            }
+            AuthNextAction.PROFILE_SETUP -> {
+                viewModel.setNextAction(null)
+                onProfileSetup()
+            }
+            null -> Unit
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -59,66 +77,41 @@ fun AuthScreen(
         verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    text = "PAPERLIKE.",
+                    text = "Paperlike.",
                     style = GatherTypography.displayLarge,
                     color = Coal
                 )
                 Text(
-                    text = "ACCESS PANEL // IDENTIFICATION",
-                    style = GatherTypography.labelMedium,
+                    text = if (state.mode == AuthMode.LOGIN) {
+                        "Welcome back • Sign in"
+                    } else {
+                        "New account • Create profile"
+                    },
+                    style = GatherTypography.bodyLarge,
                     color = LightTextMuted
                 )
-            }
-        }
 
-        item {
-            // Brutalist Login Panel
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .neoBrutalism(backgroundColor = Pearl, shadowOffset = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                // Smooth Toggle Switch
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Pearl.copy(alpha = 0.4f)
                 ) {
-                    Text(
-                        text = "ENTER CREDENTIALS",
-                        style = GatherTypography.labelLarge,
-                        color = Coal
-                    )
-
-                    BrutalistTextField(
-                        value = state.name,
-                        onValueChange = viewModel::updateName,
-                        label = "Full Name (Sign Up Only)"
-                    )
-
-                    BrutalistTextField(
-                        value = state.email,
-                        onValueChange = viewModel::updateEmail,
-                        label = "College Email"
-                    )
-
-                    BrutalistTextField(
-                        value = state.password,
-                        onValueChange = viewModel::updatePassword,
-                        label = "Password"
-                    )
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        BrutalistButton(
+                    Row(modifier = Modifier.padding(4.dp)) {
+                        SmoothButton(
                             text = "Log In",
-                            onClick = viewModel::login,
+                            onClick = { viewModel.setMode(AuthMode.LOGIN) },
+                            containerColor = if (state.mode == AuthMode.LOGIN) Pearl else Color.Transparent,
+                            contentColor = if (state.mode == AuthMode.LOGIN) Coal else LightTextMuted,
                             modifier = Modifier.weight(1f)
                         )
-                        BrutalistButton(
+                        SmoothButton(
                             text = "Sign Up",
-                            onClick = viewModel::signUp,
-                            backgroundColor = Sand,
-                            textColor = Coal,
+                            onClick = { viewModel.setMode(AuthMode.SIGN_UP) },
+                            containerColor = if (state.mode == AuthMode.SIGN_UP) Pearl else Color.Transparent,
+                            contentColor = if (state.mode == AuthMode.SIGN_UP) Coal else LightTextMuted,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -127,23 +120,89 @@ fun AuthScreen(
         }
 
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                HorizontalDivider(thickness = 4.dp, color = Coal)
-                Text(
-                    text = "OR CONTINUE WITH",
-                    style = GatherTypography.labelMedium,
-                    color = Coal
-                )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(32.dp),
+                colors = CardDefaults.cardColors(containerColor = Pearl),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(32.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    Text(
+                        text = if (state.mode == AuthMode.LOGIN) "Login to your account" else "Create your account",
+                        style = GatherTypography.titleLarge,
+                        color = Coal
+                    )
+
+                    if (state.mode == AuthMode.SIGN_UP) {
+                        SmoothTextField(
+                            value = state.name,
+                            onValueChange = viewModel::updateName,
+                            label = "Full Name"
+                        )
+                    }
+
+                    SmoothTextField(
+                        value = state.email,
+                        onValueChange = viewModel::updateEmail,
+                        label = "College Email"
+                    )
+
+                    SmoothTextField(
+                        value = state.password,
+                        onValueChange = viewModel::updatePassword,
+                        label = "Password"
+                    )
+
+                    if (state.mode == AuthMode.SIGN_UP) {
+                        SmoothTextField(
+                            value = state.confirmPassword,
+                            onValueChange = viewModel::updateConfirmPassword,
+                            label = "Confirm Password"
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    SmoothButton(
+                        text = if (state.mode == AuthMode.LOGIN) "Log In" else "Create Account",
+                        onClick = if (state.mode == AuthMode.LOGIN) viewModel::login else viewModel::signUp,
+                        containerColor = if (state.mode == AuthMode.LOGIN) Coal else Moss,
+                        contentColor = Snow,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Pearl)
+                    Text(
+                        text = "Or continue with",
+                        style = GatherTypography.bodyMedium,
+                        color = LightTextMuted
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Pearl)
+                }
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Google sign-in — premium icon button
-                    Box(
+                    // Google Sign-In
+                    Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .neoBrutalism(backgroundColor = Snow, shadowOffset = 6.dp)
+                            .height(64.dp)
+                            .clip(RoundedCornerShape(20.dp))
                             .clickable(enabled = webClientId.isNotBlank()) {
                                 val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                                     .requestIdToken(webClientId)
@@ -151,33 +210,38 @@ fun AuthScreen(
                                     .build()
                                 val signInClient = GoogleSignIn.getClient(context, options)
                                 googleLauncher.launch(signInClient.signInIntent)
-                            }
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
+                            },
+                        color = Pearl,
+                        shape = RoundedCornerShape(20.dp)
                     ) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxSize()
                         ) {
                             AsyncImage(
                                 model = "https://img.icons8.com/color/48/000000/google-logo.png",
                                 contentDescription = "Google",
                                 modifier = Modifier.size(24.dp)
                             )
-                            Text("GOOGLE", style = GatherTypography.labelLarge, color = Coal)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Google", style = GatherTypography.labelLarge, color = Coal)
                         }
                     }
 
-                    // Developer test mode
-                    Box(
+                    // Developer Test Mode
+                    Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .neoBrutalism(backgroundColor = Slate, shadowOffset = 6.dp)
-                            .clickable { viewModel.continueInTestMode() }
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
+                            .height(64.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable { viewModel.continueInTestMode() },
+                        color = Slate.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(20.dp)
                     ) {
-                        Text("TEST MODE", style = GatherTypography.labelLarge, color = Snow)
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Text("Test Mode", style = GatherTypography.labelLarge, color = Slate)
+                        }
                     }
                 }
             }
@@ -185,25 +249,20 @@ fun AuthScreen(
 
         item {
             state.error?.let {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(backgroundColor = Wine, shadowOffset = 4.dp)
-                        .padding(16.dp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Wine.copy(alpha = 0.1f)
                 ) {
-                    Text(text = "ERROR: $it", style = GatherTypography.labelMedium, color = Snow)
+                    Text(
+                        text = "Error: $it",
+                        style = GatherTypography.bodyMedium,
+                        color = Wine,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
             }
-
-            if (state.emailVerified) {
-                Spacer(modifier = Modifier.height(16.dp))
-                BrutalistButton(
-                    text = "COMPLETE SETUP",
-                    onClick = onProfileSetup,
-                    backgroundColor = Moss,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }

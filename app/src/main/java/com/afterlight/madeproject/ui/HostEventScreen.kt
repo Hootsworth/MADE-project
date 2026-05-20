@@ -10,24 +10,25 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -35,8 +36,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.afterlight.madeproject.domain.model.EventDraft
 import com.afterlight.madeproject.domain.model.UserRole
-import com.afterlight.madeproject.ui.components.BrutalistButton
-import com.afterlight.madeproject.ui.components.BrutalistTextField
+import com.afterlight.madeproject.ui.components.SmoothButton
+import com.afterlight.madeproject.ui.components.SmoothTextField
 import com.afterlight.madeproject.utils.EditorialPosterRenderer
 import com.afterlight.madeproject.ui.theme.*
 import kotlinx.coroutines.launch
@@ -51,7 +52,7 @@ fun HostEventScreen(
     val aiReason by viewModel.aiReason.collectAsStateWithLifecycle()
     val publishError by viewModel.publishError.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
-    
+
     val pagerState = rememberPagerState { 3 }
     val scope = rememberCoroutineScope()
     val accentColor = Copper
@@ -59,10 +60,10 @@ fun HostEventScreen(
     var posterBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var showSuccess by remember { mutableStateOf(false) }
 
-    val isHost = com.afterlight.madeproject.BuildConfig.DEBUG || userProfile?.role == UserRole.HOST
+    val isHost = userProfile?.role == UserRole.HOST
 
     if (showSuccess) {
-        PublishSuccessView(onPublished = { onPublished(draft.title) }) // Simplified for demo
+        PublishSuccessView(onPublished = { onPublished(draft.title) })
         return
     }
 
@@ -72,62 +73,66 @@ fun HostEventScreen(
             .background(Snow)
             .imePadding()
             .padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Phase Header
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(text = "CREATE EDITION.", style = GatherTypography.displayLarge, color = Coal)
-            
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(text = "Create Edition", style = GatherTypography.displayLarge, color = Coal)
+
+            // Smooth Progress Indicator
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val phases = listOf("INTEL", "LOGISTICS", "EDITORIAL")
-                phases.forEachIndexed { index, name ->
+                val phases = listOf("Intel", "Logistics", "Editorial")
+                phases.forEachIndexed { index, _ ->
                     val isCurrent = pagerState.currentPage == index
                     val isPast = pagerState.currentPage > index
-                    
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(4.dp)
-                            .background(if (isCurrent || isPast) Coal else LightGlass)
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(if (isCurrent || isPast) Coal else Pearl.copy(alpha = 0.6f))
                     )
                 }
             }
             Text(
                 text = when(pagerState.currentPage) {
-                    0 -> "PHASE 01: PRIMARY INTEL"
-                    1 -> "PHASE 02: LOGISTICS & VIBE"
-                    else -> "PHASE 03: EDITORIAL PREVIEW"
+                    0 -> "Step 1: Primary Intel"
+                    1 -> "Step 2: Logistics & Vibe"
+                    else -> "Step 3: Editorial Preview"
                 },
-                style = GatherTypography.labelSmall,
+                style = GatherTypography.labelMedium,
                 color = LightTextMuted
             )
         }
 
         // Permission Warning
         if (!isHost && userProfile != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .neoBrutalism(backgroundColor = Wine, shadowOffset = 4.dp)
-                    .padding(16.dp)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Wine.copy(alpha = 0.1f)
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = Snow)
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Wine)
                     Text(
-                        text = "PERMISSION ERROR: YOUR ROLE IS NOT SET TO 'HOST'. PUBLISHING WILL FAIL.",
-                        style = GatherTypography.labelSmall,
-                        color = Snow
+                        text = "Permission error: Your role is not set to 'Host'. Publishing will fail.",
+                        style = GatherTypography.bodyMedium,
+                        color = Wine
                     )
                 }
             }
         }
 
-        // Pager
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.weight(1f),
@@ -155,57 +160,62 @@ fun HostEventScreen(
 
         // Bottom Actions
         Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(bottom = 32.dp)) {
-            // AI Suggestion Box
             AnimatedVisibility(visible = aiReason != null && pagerState.currentPage < 2) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(backgroundColor = Sand, shadowOffset = 4.dp)
-                        .padding(16.dp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Sand.copy(alpha = 0.2f)
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Icon(Icons.Default.Info, contentDescription = null, tint = Coal)
-                        Text(text = "AI INTEL: ${aiReason}", style = GatherTypography.labelSmall, color = Coal)
+                        Text(text = "AI Hint: ${aiReason}", style = GatherTypography.bodyMedium, color = Coal)
                     }
                 }
             }
 
-            // Error Display
             publishError?.let {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(backgroundColor = Wine, shadowOffset = 4.dp)
-                        .padding(16.dp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Wine.copy(alpha = 0.1f)
                 ) {
-                    Text(text = "REGISTRY ERROR: $it", style = GatherTypography.labelSmall, color = Snow)
+                    Text(
+                        text = "Error: $it",
+                        style = GatherTypography.bodyMedium,
+                        color = Wine,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 if (pagerState.currentPage > 0) {
-                    BrutalistButton(
-                        text = "BACK",
+                    SmoothButton(
+                        text = "Back",
                         onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
-                        backgroundColor = Snow,
-                        textColor = Coal,
+                        containerColor = Pearl.copy(alpha = 0.5f),
+                        contentColor = Coal,
                         modifier = Modifier.weight(0.4f)
                     )
                 }
-                BrutalistButton(
-                    text = if (pagerState.currentPage < 2) "CONTINUE" else "COMMIT EDITION",
+                SmoothButton(
+                    text = if (pagerState.currentPage < 2) "Continue" else "Publish Edition",
                     onClick = {
                         if (pagerState.currentPage < 2) {
                             viewModel.saveDraft()
                             scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
                         } else {
-                            viewModel.publish { 
+                            viewModel.publish {
                                 showSuccess = true
-                                // We'll navigate after showing success for a bit
                             }
                         }
                     },
                     enabled = isHost || pagerState.currentPage < 2,
+                    containerColor = Coal,
+                    contentColor = Snow,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -226,35 +236,39 @@ private fun HostEventStepBasic(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .neoBrutalism(backgroundColor = Pearl, shadowOffset = 8.dp)
-                .padding(24.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Pearl),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Text("PRIMARY INTEL", style = GatherTypography.labelLarge, color = Coal)
-                
-                BrutalistTextField(
-                    value = draft.title, 
-                    onValueChange = { onDraftChange(draft.copy(title = it)) }, 
-                    label = "EVENT TITLE"
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Text("Primary Details", style = GatherTypography.titleLarge, color = Coal)
+
+                SmoothTextField(
+                    value = draft.title,
+                    onValueChange = { onDraftChange(draft.copy(title = it)) },
+                    label = "Event Title"
                 )
-                
-                BrutalistTextField(
-                    value = draft.description, 
-                    onValueChange = { onDraftChange(draft.copy(description = it)) }, 
-                    label = "BRIEF DESCRIPTION",
+
+                SmoothTextField(
+                    value = draft.description,
+                    onValueChange = { onDraftChange(draft.copy(description = it)) },
+                    label = "Brief Description",
                     singleLine = false
                 )
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("COVER IMAGE", style = GatherTypography.labelMedium, color = Coal)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Cover Image", style = GatherTypography.labelMedium, color = Coal)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(200.dp)
-                            .neoBrutalism(backgroundColor = LightGlass, shadowOffset = 4.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Pearl.copy(alpha = 0.3f))
                     ) {
                         if (draft.coverImageUrl.isNotBlank()) {
                             AsyncImage(
@@ -265,23 +279,23 @@ private fun HostEventStepBasic(
                             )
                         } else {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("NO IMAGE SELECTED", style = GatherTypography.labelSmall, color = LightTextMuted)
+                                Text("No image selected", style = GatherTypography.bodyMedium, color = LightTextMuted)
                             }
                         }
                     }
-                    BrutalistButton(
-                        text = "AUTO-GENERATE FROM CATEGORY",
+                    SmoothButton(
+                        text = "Auto-Generate Cover",
                         onClick = onGenerateCover,
-                        backgroundColor = Snow,
-                        textColor = Coal,
+                        containerColor = Pearl.copy(alpha = 0.5f),
+                        contentColor = Coal,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                BrutalistTextField(
-                    value = draft.category, 
-                    onValueChange = { onDraftChange(draft.copy(category = it)) }, 
-                    label = "CATEGORY (E.G. TECH, PARTY, STUDY)"
+                SmoothTextField(
+                    value = draft.category,
+                    onValueChange = { onDraftChange(draft.copy(category = it)) },
+                    label = "Category (e.g. Tech, Party)"
                 )
             }
         }
@@ -296,21 +310,24 @@ private fun HostEventStepDetails(draft: EventDraft, onDraftChange: (EventDraft) 
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .neoBrutalism(backgroundColor = Sand, shadowOffset = 8.dp)
-                .padding(24.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Pearl),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                Text("LOGISTICS & ENVIRONMENT", style = GatherTypography.labelLarge, color = Coal)
-                
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                Text("Logistics & Environment", style = GatherTypography.titleLarge, color = Coal)
+
                 val context = androidx.compose.ui.platform.LocalContext.current
                 val calendar = remember(draft.dateTime) { java.util.Calendar.getInstance().apply { timeInMillis = draft.dateTime } }
-                
+
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    BrutalistButton(
-                        text = "DATE: ${android.text.format.DateFormat.format("MMM dd", calendar).toString().uppercase()}",
+                    SmoothButton(
+                        text = android.text.format.DateFormat.format("MMM dd", calendar).toString(),
                         onClick = {
                             android.app.DatePickerDialog(
                                 context,
@@ -324,13 +341,13 @@ private fun HostEventStepDetails(draft: EventDraft, onDraftChange: (EventDraft) 
                                 calendar.get(java.util.Calendar.DAY_OF_MONTH)
                             ).show()
                         },
-                        backgroundColor = Pearl,
-                        textColor = Coal,
+                        containerColor = Pearl.copy(alpha = 0.5f),
+                        contentColor = Coal,
                         modifier = Modifier.weight(1f)
                     )
 
-                    BrutalistButton(
-                        text = "TIME: ${android.text.format.DateFormat.format("hh:mm a", calendar).toString().uppercase()}",
+                    SmoothButton(
+                        text = android.text.format.DateFormat.format("hh:mm a", calendar).toString(),
                         onClick = {
                             android.app.TimePickerDialog(
                                 context,
@@ -345,41 +362,40 @@ private fun HostEventStepDetails(draft: EventDraft, onDraftChange: (EventDraft) 
                                 false
                             ).show()
                         },
-                        backgroundColor = Pearl,
-                        textColor = Coal,
+                        containerColor = Pearl.copy(alpha = 0.5f),
+                        contentColor = Coal,
                         modifier = Modifier.weight(1f)
                     )
                 }
-                
-                BrutalistTextField(
-                    value = draft.venue, 
-                    onValueChange = { onDraftChange(draft.copy(venue = it)) }, 
-                    label = "VENUE / LOCATION"
+
+                SmoothTextField(
+                    value = draft.venue,
+                    onValueChange = { onDraftChange(draft.copy(venue = it)) },
+                    label = "Venue Location"
                 )
-                
+
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Box(modifier = Modifier.weight(1f)) {
-                        BrutalistTextField(
-                            value = draft.capacity, 
-                            onValueChange = { onDraftChange(draft.copy(capacity = it)) }, 
-                            label = "CAPACITY"
+                        SmoothTextField(
+                            value = draft.capacity,
+                            onValueChange = { onDraftChange(draft.copy(capacity = it)) },
+                            label = "Capacity"
                         )
                     }
                     Box(modifier = Modifier.weight(1f)) {
-                        BrutalistTextField(
-                            value = draft.price, 
-                            onValueChange = { onDraftChange(draft.copy(price = it)) }, 
-                            label = "PRICE (0 FOR FREE)"
+                        SmoothTextField(
+                            value = draft.price,
+                            onValueChange = { onDraftChange(draft.copy(price = it)) },
+                            label = "Price (0 for free)"
                         )
                     }
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("VIBE VECTORS", style = GatherTypography.labelMedium, color = Coal)
+                    Text("Vibe Vectors", style = GatherTypography.labelMedium, color = Coal)
                     VibeChips(
                         selected = draft.vibes.map { it.name.lowercase() },
                         onToggle = { vibeStr ->
-                            // Simple mapping back to enum for now
                             val vibes = com.afterlight.madeproject.domain.model.VibeTag.entries.toList()
                             val selectedVibe = vibes.find { it.name.lowercase() == vibeStr }
                             selectedVibe?.let {
@@ -391,10 +407,10 @@ private fun HostEventStepDetails(draft: EventDraft, onDraftChange: (EventDraft) 
                     )
                 }
 
-                BrutalistTextField(
-                    value = draft.tags, 
-                    onValueChange = { onDraftChange(draft.copy(tags = it)) }, 
-                    label = "SEARCH TAGS (COMMA SEPARATED)"
+                SmoothTextField(
+                    value = draft.tags,
+                    onValueChange = { onDraftChange(draft.copy(tags = it)) },
+                    label = "Search Tags (comma separated)"
                 )
             }
         }
@@ -413,16 +429,14 @@ private fun HostEventPreview(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Text("EDITORIAL REVIEW", style = GatherTypography.labelLarge, color = Coal)
-
-        // The Magazine-style Preview Card
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .neoBrutalism(backgroundColor = Pearl, shadowOffset = 12.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Pearl),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
         ) {
             Column {
-                Box(modifier = Modifier.fillMaxWidth().height(200.dp).background(Coal)) {
+                Box(modifier = Modifier.fillMaxWidth().height(220.dp).background(Coal)) {
                     if (draft.coverImageUrl.isNotBlank()) {
                         AsyncImage(
                             model = draft.coverImageUrl,
@@ -431,64 +445,71 @@ private fun HostEventPreview(
                             contentScale = ContentScale.Crop
                         )
                     }
-                    Box(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .neoBrutalism(backgroundColor = Moss, shadowOffset = 2.dp)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    Surface(
+                        shape = CircleShape,
+                        color = Moss,
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        Text(text = draft.category.uppercase(), style = GatherTypography.labelSmall, color = Snow)
+                        Text(
+                            text = draft.category,
+                            style = GatherTypography.labelSmall,
+                            color = Snow,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
                     }
                 }
-                
-                Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     Text(
-                        text = draft.title.ifBlank { "UNTITLED EDITION" }.uppercase(),
+                        text = draft.title.ifBlank { "Untitled Edition" },
                         style = GatherTypography.displayLarge.copy(fontSize = 32.sp, lineHeight = 36.sp),
                         color = Coal
                     )
-                    
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column {
-                            Text("LOCATION", style = GatherTypography.labelSmall, color = LightTextMuted)
-                            Text(draft.venue.ifBlank { "TBD" }, style = GatherTypography.labelLarge, color = Coal)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Location", style = GatherTypography.labelSmall, color = LightTextMuted)
+                            Text(draft.venue.ifBlank { "TBD" }, style = GatherTypography.titleLarge, color = Coal)
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("CAPACITY", style = GatherTypography.labelSmall, color = LightTextMuted)
-                            Text("${draft.capacity} SPOTS", style = GatherTypography.labelLarge, color = Copper)
+                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Capacity", style = GatherTypography.labelSmall, color = LightTextMuted)
+                            Text("${draft.capacity} spots", style = GatherTypography.titleLarge, color = Copper)
                         }
                     }
-                    
-                    HorizontalDivider(thickness = 2.dp, color = Coal.copy(alpha = 0.1f))
-                    
+
+                    HorizontalDivider(thickness = 1.dp, color = Pearl)
+
                     Text(
                         text = draft.description.ifBlank { "No description provided for this campus edition." },
                         style = GatherTypography.bodyLarge,
-                        color = Coal
+                        color = Coal.copy(alpha = 0.8f)
                     )
                 }
             }
         }
 
-        // Poster Generation Section
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .neoBrutalism(backgroundColor = Snow, shadowOffset = 8.dp)
-                .padding(24.dp)
+        // Poster Generation
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Pearl),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Text("POSTER ASSET", style = GatherTypography.labelLarge, color = Coal)
-                
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Text("Poster Asset", style = GatherTypography.titleLarge, color = Coal)
+
                 if (posterBitmap != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(400.dp)
-                            .border(3.dp, Coal)
+                            .clip(RoundedCornerShape(16.dp))
                     ) {
                         Image(
                             bitmap = posterBitmap.asImageBitmap(),
@@ -502,24 +523,25 @@ private fun HostEventPreview(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(100.dp)
-                            .background(LightGlass),
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Pearl.copy(alpha = 0.3f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("NO ASSET GENERATED", style = GatherTypography.labelSmall, color = LightTextMuted)
+                        Text("No asset generated", style = GatherTypography.bodyMedium, color = LightTextMuted)
                     }
                 }
 
-                BrutalistButton(
-                    text = "RE-GENERATE ASSET",
+                SmoothButton(
+                    text = "Generate Print Asset",
                     onClick = onBuildPoster,
-                    backgroundColor = Coal,
-                    textColor = Snow,
+                    containerColor = Pearl.copy(alpha = 0.5f),
+                    contentColor = Coal,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(32.dp))
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -539,19 +561,25 @@ private fun PublishSuccessView(onPublished: () -> Unit) {
             AsyncImage(
                 model = "https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=2070&auto=format&fit=crop",
                 contentDescription = null,
-                modifier = Modifier.size(280.dp).neoBrutalism(shadowOffset = 12.dp)
+                modifier = Modifier
+                    .size(240.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
             )
-            
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("EDITION COMMITTED.", style = GatherTypography.displayLarge, color = Coal)
-                Text("YOUR EVENT IS NOW LIVE IN THE REGISTRY", style = GatherTypography.labelMedium, color = Moss)
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Edition Committed", style = GatherTypography.displayLarge, color = Coal)
+                Text("Your event is now live in the registry.", style = GatherTypography.bodyLarge, color = Moss)
             }
-            
-            BrutalistButton(
-                text = "RETURN TO FEED",
+
+            SmoothButton(
+                text = "Return to Feed",
                 onClick = onPublished,
-                backgroundColor = Coal,
-                textColor = Snow,
+                containerColor = Coal,
+                contentColor = Snow,
                 modifier = Modifier.fillMaxWidth()
             )
         }

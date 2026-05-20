@@ -5,6 +5,7 @@ import com.afterlight.madeproject.domain.model.UserRole
 import com.afterlight.madeproject.domain.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -29,26 +30,52 @@ class FirebaseUserRepository @Inject constructor(
                 "referralCode" to profile.referralCode,
                 "badgesEarned" to profile.badgesEarned,
                 "createdAt" to profile.createdAt
-            )
+            ),
+            SetOptions.merge()
         ).await()
     }
 
     override fun observeCurrentUser(): Flow<UserProfile?> = callbackFlow {
-        val uid = auth.currentUser?.uid
-        if (uid == null) {
-            trySend(null)
-            close()
-            return@callbackFlow
-        }
-        val registration = firestore.collection("users").document(uid)
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot == null || !snapshot.exists()) {
-                    trySend(null)
-                } else {
-                    trySend(snapshot.toUser(uid))
-                }
+        var registration: com.google.firebase.firestore.ListenerRegistration? = null
+
+        val authListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            registration?.remove()
+            registration = null
+
+            val uid = firebaseAuth.currentUser?.uid
+            if (uid == null) {
+                trySend(null)
+                return@AuthStateListener
             }
-        awaitClose { registration.remove() }
+
+            registration = firestore.collection("users").document(uid)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null || snapshot == null || !snapshot.exists()) {
+                        trySend(null)
+                    } else {
+                        val user = runCatching { snapshot.toUser(uid) }.getOrNull()
+                        trySend(user)
+                    }
+                }
+        }
+
+        auth.addAuthStateListener(authListener)
+        auth.currentUser?.uid?.let { uid ->
+            registration = firestore.collection("users").document(uid)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null || snapshot == null || !snapshot.exists()) {
+                        trySend(null)
+                    } else {
+                        val user = runCatching { snapshot.toUser(uid) }.getOrNull()
+                        trySend(user)
+                    }
+                }
+        } ?: trySend(null)
+
+        awaitClose {
+            registration?.remove()
+            auth.removeAuthStateListener(authListener)
+        }
     }
 
     override suspend fun getCurrentUser(): UserProfile? {
@@ -64,11 +91,15 @@ class FirebaseUserRepository @Inject constructor(
             name = getString("name").orEmpty(),
             year = getString("year").orEmpty(),
             department = getString("department").orEmpty(),
-            interests = get("interests") as? List<String> ?: emptyList(),
+            interests = getStringList("interests"),
             role = if (getString("role") == "host") UserRole.HOST else UserRole.STUDENT,
             referralCode = getString("referralCode").orEmpty(),
-            badgesEarned = get("badgesEarned") as? List<String> ?: emptyList(),
+            badgesEarned = getStringList("badgesEarned"),
             createdAt = getLong("createdAt") ?: System.currentTimeMillis()
         )
+    }
+
+    private fun com.google.firebase.firestore.DocumentSnapshot.getStringList(field: String): List<String> {
+        return (get(field) as? List<*>).orEmpty().mapNotNull { it as? String }
     }
 }

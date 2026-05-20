@@ -7,6 +7,7 @@ import com.afterlight.madeproject.domain.model.EventDraft
 import com.afterlight.madeproject.domain.model.EventStatus
 import com.afterlight.madeproject.domain.model.RecapPost
 import com.afterlight.madeproject.domain.model.RSVPActivity
+import com.afterlight.madeproject.domain.model.Promotion
 import com.afterlight.madeproject.domain.model.VibeTag
 import com.afterlight.madeproject.domain.repository.EventRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -17,6 +18,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 
 class FirebaseEventRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
@@ -154,58 +156,151 @@ class FirebaseEventRepository @Inject constructor(
 
     override suspend fun rsvp(eventId: String, referredBy: String?): Result<Unit> = runCatching {
         val uid = auth.currentUser?.uid ?: error("Not authenticated")
+        val userSnapshot = firestore.collection("users").document(uid).get().await()
+        val profileName = userSnapshot.getString("name")
+        val profileEmail = userSnapshot.getString("email")
+        val attendeeRef = firestore.collection("rsvps").document(eventId)
+            .collection("attendees").document(uid)
+        val ticketId = UUID.randomUUID().toString()
         val attendee = mapOf(
             "uid" to uid,
-            "name" to (auth.currentUser?.displayName ?: "Student"),
-            "email" to (auth.currentUser?.email ?: ""),
+            "name" to (profileName ?: auth.currentUser?.displayName ?: "Student"),
+            "email" to (profileEmail ?: auth.currentUser?.email ?: ""),
             "rsvpAt" to System.currentTimeMillis(),
             "checkInStatus" to false,
+            "ticketId" to ticketId,
             "referredBy" to referredBy
         )
-        // Global RSVP record for the event host
-        firestore.collection("rsvps").document(eventId)
-            .collection("attendees").document(uid).set(attendee).await()
-
-        // User-specific record for "My Events" filtering
-        firestore.collection("users").document(uid)
-            .collection("myRsvps").document(eventId).set(mapOf(
-                "eventId" to eventId,
-                "rsvpAt" to System.currentTimeMillis()
-            )).await()
-
         val eventRef = firestore.collection("events").document(eventId)
-        firestore.runTransaction { tx ->
-            val current = tx.get(eventRef).getLong("rsvpCount") ?: 0L
-            tx.update(eventRef, "rsvpCount", current + 1L)
-        }.await()
+        try {
+            val eventSnapshot = eventRef.get().await()
+            val eventStatus = eventSnapshot.getString("status").orEmpty()
+            val eventTime = eventSnapshot.getLong("dateTime") ?: 0L
+            val capacity = (eventSnapshot.getLong("capacity") ?: 0L).toInt()
+            val currentRsvp = (eventSnapshot.getLong("rsvpCount") ?: 0L).toInt()
+
+            if (eventStatus == "past" || eventTime <= System.currentTimeMillis()) {
+                error("RSVP is closed for this event.")
+            }
+
+            // If already signed up
+            val existing = attendeeRef.get().await()
+            if (existing.exists()) error("You have already RSVP'd to this event.")
+
+            // If capacity full, add to waitlist instead of failing hard
+            if (capacity > 0 && currentRsvp >= capacity) {
+                val waitRef = firestore.collection("rsvps").document(eventId)
+                    .collection("waitlist").document(uid)
+                waitRef.set(
+                    mapOf(
+                        "uid" to uid,
+                        "name" to (profileName ?: auth.currentUser?.displayName ?: "Student"),
+                        "email" to (profileEmail ?: auth.currentUser?.email ?: ""),
+                        "waitAt" to System.currentTimeMillis(),
+                        "referredBy" to referredBy
+                    )
+                ).await()
+                // Inform caller that user was waitlisted via exception message
+                throw java.lang.Exception("Event is full — you've been added to the waitlist.")
+            }
+
+            // Proceed to add attendee transactionally
+            firestore.runTransaction { tx ->
+                tx.set(attendeeRef, attendee)
+                tx.set(
+                    firestore.collection("users").document(uid).collection("myRsvps").document(eventId),
+                    mapOf(
+                        "eventId" to eventId,
+                        "rsvpAt" to System.currentTimeMillis()
+                    )
+                )
+                val current = (eventSnapshot.getLong("rsvpCount") ?: 0L)
+                tx.update(eventRef, "rsvpCount", current + 1L)
+            }.await()
+        } catch (e: Exception) {
+            val msg = when (e) {
+                is com.google.firebase.firestore.FirebaseFirestoreException -> when (e.code) {
+                    com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED -> "You don't have permission to RSVP to this event."
+                    else -> e.message
+                }
+                else -> e.message
+            }
+            throw java.lang.Exception(msg)
+        }
+    }
+
+    override suspend fun markAttendeeCheckedIn(eventId: String, attendeeUid: String): Result<Unit> = runCatching {
+        val currentUid = auth.currentUser?.uid ?: error("Not authenticated")
+        val eventRef = firestore.collection("events").document(eventId)
+        val eventSnapshot = eventRef.get().await()
+        val hostUid = eventSnapshot.getString("hostUid").orEmpty()
+        if (hostUid != currentUid) error("Only the host can check in attendees")
+
+        val attendeeRef = firestore.collection("rsvps").document(eventId)
+            .collection("attendees").document(attendeeUid)
+        attendeeRef.update("checkInStatus", true).await()
+    }
+
+    override suspend fun checkInWithTicket(eventId: String, ticketId: String): Result<Unit> = runCatching {
+        val uid = auth.currentUser?.uid ?: error("Not authenticated")
+        // Only hosts can check in via ticket
+        val eventRef = firestore.collection("events").document(eventId)
+        val eventSnapshot = eventRef.get().await()
+        val hostUid = eventSnapshot.getString("hostUid").orEmpty()
+        if (hostUid != uid) error("Only the host can check in attendees")
+
+        val query = firestore.collection("rsvps").document(eventId).collection("attendees")
+            .whereEqualTo("ticketId", ticketId).limit(1).get().await()
+        val doc = query.documents.firstOrNull() ?: error("Ticket not found")
+        val attendeeRef = doc.reference
+        attendeeRef.update("checkInStatus", true).await()
     }
 
     override suspend fun saveDraft(draft: EventDraft): Result<String> = runCatching {
         val uid = auth.currentUser?.uid ?: error("Not authenticated")
-        
-        // FAILSAFE FOR DEMO: Grant 'host' role in backend so Firestore rules don't block the write
-        try {
-            firestore.collection("users").document(uid)
-                .set(mapOf("role" to "host"), com.google.firebase.firestore.SetOptions.merge()).await()
-        } catch (e: Exception) { /* ignore */ }
+        // Validation: basic draft sanity checks
+        val capacityInt = draft.capacity.toIntOrNull() ?: 0
+        if (draft.title.isBlank()) error("Title is required")
+        if (capacityInt < 1) error("Capacity must be at least 1")
 
-        val doc = firestore.collection("events").document()
-        doc.set(draft.toMap(uid, "draft")).await()
-        doc.id
+        try {
+            val doc = firestore.collection("events").document()
+            doc.set(draft.toMap(uid, "draft")).await()
+            doc.id
+        } catch (e: Exception) {
+            val msg = if (e is com.google.firebase.firestore.FirebaseFirestoreException
+                && e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED
+            ) {
+                "You don't have permission to save this draft."
+            } else {
+                e.message
+            }
+            throw java.lang.Exception(msg)
+        }
     }
 
     override suspend fun publishEvent(draftId: String, draft: EventDraft): Result<String> = runCatching {
         val uid = auth.currentUser?.uid ?: error("Not authenticated")
-        
-        // FAILSAFE FOR DEMO: Grant 'host' role in backend
-        try {
-            firestore.collection("users").document(uid)
-                .set(mapOf("role" to "host"), com.google.firebase.firestore.SetOptions.merge()).await()
-        } catch (e: Exception) { /* ignore */ }
+        // Validation before publishing
+        val capacityInt = draft.capacity.toIntOrNull() ?: 0
+        if (draft.title.isBlank()) error("Title is required")
+        if (capacityInt < 1) error("Capacity must be at least 1")
+        if (draft.dateTime <= System.currentTimeMillis()) error("Event date must be in the future")
 
-        val doc = if (draftId.isBlank()) firestore.collection("events").document() else firestore.collection("events").document(draftId)
-        doc.set(draft.toMap(uid, "live")).await()
-        doc.id
+        try {
+            val doc = if (draftId.isBlank()) firestore.collection("events").document() else firestore.collection("events").document(draftId)
+            doc.set(draft.toMap(uid, "live")).await()
+            doc.id
+        } catch (e: Exception) {
+            val msg = if (e is com.google.firebase.firestore.FirebaseFirestoreException
+                && e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED
+            ) {
+                "You don't have permission to publish this event."
+            } else {
+                e.message
+            }
+            throw java.lang.Exception(msg)
+        }
     }
 
     override suspend fun generateReferralLink(eventId: String, uid: String): Result<String> = runCatching {
@@ -280,8 +375,12 @@ class FirebaseEventRepository @Inject constructor(
     override fun observeMyHosted(uid: String): Flow<List<Event>> = callbackFlow {
         val listener = firestore.collection("events")
             .whereEqualTo("hostUid", uid)
-            .orderBy("dateTime", Query.Direction.DESCENDING)
-            .addSnapshotListener { snap, _ -> trySend(snap?.documents.orEmpty().map { it.toEvent() }) }
+            .addSnapshotListener { snap, _ ->
+                val events = snap?.documents.orEmpty()
+                    .map { it.toEvent() }
+                    .sortedByDescending { it.dateTime }
+                trySend(events)
+            }
         awaitClose { listener.remove() }
     }
 
@@ -308,12 +407,30 @@ class FirebaseEventRepository @Inject constructor(
                         name = doc.getString("name").orEmpty().ifBlank { "Student" },
                         email = doc.getString("email").orEmpty(),
                         rsvpAt = doc.getLong("rsvpAt") ?: 0L,
-                        checkInStatus = doc.getBoolean("checkInStatus") ?: false
+                        checkInStatus = doc.getBoolean("checkInStatus") ?: false,
+                        ticketId = doc.getString("ticketId").orEmpty()
                     )
                 }
                 trySend(attendees)
             }
         awaitClose { listener.remove() }
+    }
+
+    override fun observeWaitlistPosition(eventId: String, uid: String): Flow<Int?> = callbackFlow {
+        val listener = firestore.collection("rsvps").document(eventId)
+            .collection("waitlist")
+            .orderBy("waitAt", Query.Direction.ASCENDING)
+            .addSnapshotListener { snap, _ ->
+                val docs = snap?.documents.orEmpty()
+                val index = docs.indexOfFirst { it.id == uid }
+                if (index == -1) trySend(null) else trySend(index + 1)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    override suspend fun removeFromWaitlist(eventId: String, uid: String): Result<Unit> = runCatching {
+        firestore.collection("rsvps").document(eventId)
+            .collection("waitlist").document(uid).delete().await()
     }
 
     override fun observeRecapWall(eventId: String): Flow<List<RecapPost>> = callbackFlow {
@@ -360,13 +477,62 @@ class FirebaseEventRepository @Inject constructor(
         val hostUid = eventSnapshot.getString("hostUid").orEmpty()
         if (hostUid != currentUid) error("Only the host can remove attendees")
 
+        // Remove attendee and their myRsvps entry
         attendeeRef.delete().await()
         userRsvpRef.delete().await()
 
-        firestore.runTransaction { tx ->
-            val current = tx.get(eventRef).getLong("rsvpCount") ?: 0L
-            tx.update(eventRef, "rsvpCount", (current - 1L).coerceAtLeast(0L))
-        }.await()
+        // Check for waitlisted users to promote
+        val waitQuery = firestore.collection("rsvps").document(eventId)
+            .collection("waitlist").orderBy("waitAt", Query.Direction.ASCENDING).limit(1)
+        val waitSnap = waitQuery.get().await()
+        if (waitSnap.isEmpty) {
+            // No waitlist — decrement rsvpCount
+            firestore.runTransaction { tx ->
+                val current = tx.get(eventRef).getLong("rsvpCount") ?: 0L
+                tx.update(eventRef, "rsvpCount", (current - 1L).coerceAtLeast(0L))
+            }.await()
+        } else {
+            // Promote the first waitlisted user
+            val doc = waitSnap.documents.first()
+            val promotedUid = doc.id
+            val promotedName = doc.getString("name").orEmpty()
+            val promotedEmail = doc.getString("email").orEmpty()
+
+            // Create attendee for promoted user and add their myRsvps entry, then remove waitlist entry
+            val promotedAttendeeRef = firestore.collection("rsvps").document(eventId)
+                .collection("attendees").document(promotedUid)
+            val promotedUserRsvpRef = firestore.collection("users").document(promotedUid)
+                .collection("myRsvps").document(eventId)
+
+            firestore.runTransaction { tx ->
+                tx.set(promotedAttendeeRef, mapOf(
+                    "uid" to promotedUid,
+                    "name" to promotedName,
+                    "email" to promotedEmail,
+                    "rsvpAt" to System.currentTimeMillis(),
+                    "checkInStatus" to false,
+                    "ticketId" to java.util.UUID.randomUUID().toString()
+                ))
+                tx.set(promotedUserRsvpRef, mapOf(
+                    "eventId" to eventId,
+                    "rsvpAt" to System.currentTimeMillis()
+                ))
+
+                val current = tx.get(eventRef).getLong("rsvpCount") ?: 0L
+                tx.update(eventRef, mapOf(
+                    "rsvpCount" to current + 1L,
+                    "lastPromotion" to mapOf(
+                        "uid" to promotedUid,
+                        "name" to promotedName,
+                        "at" to System.currentTimeMillis()
+                    )
+                ))
+            }.await()
+
+            // Delete the waitlist doc after promotion
+            firestore.collection("rsvps").document(eventId)
+                .collection("waitlist").document(promotedUid).delete().await()
+        }
     }
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toEvent(): Event {
@@ -394,6 +560,14 @@ class FirebaseEventRepository @Inject constructor(
             isPaid = getBoolean("isPaid") ?: false,
             price = getString("price").orEmpty(),
             socialProof = RSVPActivity(uid = "", name = "", timestamp = 0L),
+            lastPromotion = runCatching {
+                val map = get("lastPromotion") as? Map<*, *>
+                if (map == null) null else Promotion(
+                    uid = map["uid"].toString(),
+                    name = map["name"].toString(),
+                    at = (map["at"] as? Long) ?: 0L
+                )
+            }.getOrNull(),
             createdAt = getLong("createdAt") ?: System.currentTimeMillis()
         )
     }

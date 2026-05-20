@@ -1,15 +1,20 @@
 package com.afterlight.madeproject.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -19,37 +24,27 @@ import com.afterlight.madeproject.domain.model.VibeTag
 import com.afterlight.madeproject.utils.DateTimeUtils
 import com.afterlight.madeproject.ui.theme.*
 
-/**
- * Higher-level composables that compose the brutalist component primitives.
- *
- * IMPORTANT: Basic primitives (BrutalistButton, BrutalistTextField) live
- * exclusively in [com.afterlight.madeproject.ui.components.BrutalistComponents.kt].
- * Do NOT duplicate them here.
- */
-
 // ── Vibe Chips ──────────────────────────────────────────────────────────
 @Composable
 fun VibeChips(
     selected: List<String>,
     onToggle: (String) -> Unit
 ) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(VibeTag.entries.toList()) { vibe ->
             val isSelected = selected.contains(vibe.name.lowercase())
-            Box(
+            Surface(
                 modifier = Modifier
-                    .neoBrutalism(
-                        backgroundColor = if (isSelected) Coal else Snow,
-                        shadowOffset = 2.dp,
-                        borderWidth = 2.dp
-                    )
-                    .clickable { onToggle(vibe.name.lowercase()) }
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .clip(CircleShape)
+                    .clickable { onToggle(vibe.name.lowercase()) },
+                shape = CircleShape,
+                color = if (isSelected) Coal else Pearl.copy(alpha = 0.4f)
             ) {
                 Text(
-                    text = vibe.name.uppercase(),
+                    text = vibe.name.lowercase().replaceFirstChar { it.uppercase() },
                     style = GatherTypography.labelMedium,
-                    color = if (isSelected) Snow else Coal
+                    color = if (isSelected) Snow else Coal,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
         }
@@ -63,10 +58,11 @@ fun EventEditorialCard(
     tickerText: String,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .neoBrutalism(backgroundColor = Pearl, shadowOffset = 8.dp)
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Pearl),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column {
             Box {
@@ -79,16 +75,16 @@ fun EventEditorialCard(
                         .background(Coal),
                     contentScale = ContentScale.Crop
                 )
-                Box(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .neoBrutalism(backgroundColor = Moss, shadowOffset = 2.dp)
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                Surface(
+                    shape = CircleShape,
+                    color = Moss.copy(alpha = 0.9f),
+                    modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = event.category.ifBlank { "Editorial pick" }.uppercase(),
+                        text = event.category.ifBlank { "Editorial pick" },
                         style = GatherTypography.labelSmall,
-                        color = Snow
+                        color = Snow,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
@@ -98,7 +94,7 @@ fun EventEditorialCard(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = event.title.uppercase(),
+                    text = event.title,
                     style = GatherTypography.titleLarge,
                     color = Coal
                 )
@@ -109,7 +105,7 @@ fun EventEditorialCard(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = event.hostName.ifBlank { "Host" }.uppercase(),
+                            text = event.hostName.ifBlank { "Host" },
                             style = GatherTypography.labelLarge,
                             color = Coal
                         )
@@ -119,25 +115,29 @@ fun EventEditorialCard(
                             color = Copper
                         )
                     }
-                    Box(
-                        modifier = Modifier
-                            .neoBrutalism(backgroundColor = Sand, shadowOffset = 2.dp)
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    Surface(
+                        shape = CircleShape,
+                        color = Sand.copy(alpha = 0.2f)
                     ) {
                         Text(
-                            text = "${event.spotsLeft} SPOTS",
+                            text = "${event.spotsLeft} Spots",
                             style = GatherTypography.labelSmall,
-                            color = Coal
+                            color = Coal,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
                 }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(backgroundColor = Snow, shadowOffset = 2.dp)
-                        .padding(12.dp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Pearl.copy(alpha = 0.3f)
                 ) {
-                    Text(text = tickerText, style = GatherTypography.labelMedium, color = Coal)
+                    Text(
+                        text = tickerText,
+                        style = GatherTypography.labelMedium,
+                        color = Coal,
+                        modifier = Modifier.padding(12.dp)
+                    )
                 }
             }
         }
@@ -147,53 +147,50 @@ fun EventEditorialCard(
 // ── Shimmer Card ────────────────────────────────────────────────────────
 @Composable
 fun ShimmerCard(modifier: Modifier = Modifier) {
-    Box(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(200.dp)
-            .neoBrutalism(backgroundColor = LightGlass, shadowOffset = 4.dp)
-    )
+            .height(200.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Pearl.copy(alpha = 0.3f)
+    ) {}
 }
 
 // ── Department Leaderboard ──────────────────────────────────────────────
 @Composable
 fun DepartmentLeaderboardBlock(rows: List<Pair<String, Int>>) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .neoBrutalism(backgroundColor = Pearl, shadowOffset = 8.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Pearl),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "DEPARTMENT RANKING".uppercase(),
-                style = GatherTypography.labelLarge,
-                color = Coal
-            )
             rows.forEachIndexed { index, row ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .neoBrutalism(
-                            backgroundColor = if (index == 0) Sand else Snow,
-                            shadowOffset = 2.dp
-                        )
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (index == 0) Sand.copy(alpha = 0.2f) else Pearl.copy(alpha = 0.2f)
                 ) {
-                    Text(
-                        text = "${index + 1}. ${row.first}".uppercase(),
-                        style = GatherTypography.titleLarge,
-                        color = Coal
-                    )
-                    Text(
-                        text = row.second.toString(),
-                        style = GatherTypography.titleLarge,
-                        color = Moss
-                    )
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "${index + 1}. ${row.first}",
+                            style = GatherTypography.titleLarge,
+                            color = Coal
+                        )
+                        Text(
+                            text = row.second.toString(),
+                            style = GatherTypography.titleLarge,
+                            color = Moss
+                        )
+                    }
                 }
             }
         }

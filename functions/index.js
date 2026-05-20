@@ -10,3 +10,4 @@ exports.validateCollegeDomain = functions.https.onCall(async (data) => {
     domain: allowedDomain,
   };
 });
+

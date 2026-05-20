@@ -20,6 +20,12 @@ enum class AiProvider {
     GEMINI
 }
 
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK
+}
+
 data class UserProfile(
     val uid: String = "",
     val email: String = "",
@@ -44,7 +50,8 @@ data class EventAttendee(
     val name: String = "",
     val email: String = "",
     val rsvpAt: Long = 0L,
-    val checkInStatus: Boolean = false
+    val checkInStatus: Boolean = false,
+    val ticketId: String = ""
 )
 
 data class Event(
@@ -65,6 +72,7 @@ data class Event(
     val isPaid: Boolean = false,
     val price: String = "",
     val socialProof: RSVPActivity? = null,
+    val lastPromotion: Promotion? = null,
     val createdAt: Long = System.currentTimeMillis()
 ) {
     val spotsLeft: Int get() = (capacity - rsvpCount).coerceAtLeast(0)
@@ -85,6 +93,12 @@ data class RecapPost(
     val caption: String,
     val createdAt: Long,
     val isPinned: Boolean
+)
+
+data class Promotion(
+    val uid: String = "",
+    val name: String = "",
+    val at: Long = 0L
 )
 
 data class EventDraft(
